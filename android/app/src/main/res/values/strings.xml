@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="client_id">${naver-secret-client-id}</string>
-    <string name="client_secret">${naver-secret-client-secret}</string>
-    <string name="client_name">${client_name}</string>
-</resources>

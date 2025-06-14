@@ -20,7 +20,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.1.0
   url_launcher: ^6.3.1
-  kakao_flutter_sdk: ^1.9.7+3
+  kakao_flutter_sdk: ^1.4.2
   kakao_flutter_sdk_common: ^1.4.2
   kakao_flutter_sdk_auth: ^1.4.2
   flutter_dotenv: ^5.0.2
@@ -30,7 +30,6 @@ dependencies:
   shared_preferences: ^2.5.3
   crypto: ^3.0.6
   flutter_naver_login: ^2.1.1
-  kakao_flutter_sdk_user: ^1.9.7+3
 
 dev_dependencies:
   flutter_test:
