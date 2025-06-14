@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.flutter_gpt_project">
+       <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="flutter_gpt_project"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,6 +35,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        
         <!-- 아래 data의 scheme은 카카오 네이티브 앱키로 변경 -->
         <data android:scheme="kakao${nativeAppKey}"/>
       </intent-filter>
@@ -41,6 +45,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+                    <meta-data
+           android:name="com.naver.sdk.clientId"
+           android:value="${naver-secret-client-id}" />
+        <meta-data
+           android:name="com.naver.sdk.clientSecret"
+           android:value="${naver-secret-client-secret}" />
+        <meta-data
+           android:name="com.naver.sdk.clientName"
+           android:value="@string/client_name" />
     </application>
 
 

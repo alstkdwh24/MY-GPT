@@ -1,7 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_naver_login/flutter_naver_login.dart';
+import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:logging/logging.dart';
 
 class LoginPage extends StatefulWidget {
@@ -71,13 +77,27 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   onPressed: () async {
                     try {
-                      await UserApi.instance.loginWithKakaoAccount();
-                      print('카카오계정으로 로그인 성공');
+                      bool isInstalled = await isKakaoTalkInstalled();
+                      OAuthToken token;
+                      if (isInstalled) {
+                        // 카카오톡 앱 로그인
+                        token = await UserApi.instance.loginWithKakaoTalk();
+                        print('카카오톡으로 로그인 성공');
+                      } else {
+                        // 카카오계정(웹) 로그인
+                        token = await UserApi.instance.loginWithKakaoAccount();
+                        print('카카오계정으로 로그인 성공');
+                      }
+                      // 토큰을 Spring Boot 서버로 전송
+                      final response = await http.post(
+                        Uri.parse('http://localhost:8083/api/kakaoToken'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({'kakaoToken': token.accessToken}),
+                      );
 
-
-
+                      print('서버 응답: ${response.body}');
                     } catch (error) {
-                      print('카카오계정으로 로그인 실패 $error');
+                      print('로그인 실패 $error');
                     }
                   },
                   child: SizedBox(
@@ -107,7 +127,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         padding: EdgeInsets.zero,
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final NaverLoginResult result =
+                            await FlutterNaverLogin.logIn();
+                      },
                       child: SizedBox(
                         width: double.infinity, // 버튼 전체 너비
                         height: 48,
@@ -289,7 +312,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: EdgeInsets.zero,
                     elevation: 0,
                   ),
-                  onPressed: () {},
+                  onPressed: () async {},
                   child: SizedBox(
                     height: 48,
                     width: double.infinity,

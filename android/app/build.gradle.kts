@@ -1,22 +1,34 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+}
 
+val gptProps = Properties()
+val gptPropsFile = rootProject.file("gpt.properties")
+if (gptPropsFile.exists()) {
+    gptProps.load(FileInputStream(gptPropsFile))
 }
 
 android {
     namespace = "com.example.flutter_gpt_project"
-    compileSdk = 35 // 원하는 compileSdk 버전으로 지정
-    ndkVersion = "27.0.12077973" // NDK 버전 명시
+    compileSdk = 35
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.example.flutter_gpt_project"
-        minSdk = 24 // 원하는 minSdk 버전으로 지정
-        //noinspection EditedTargetSdkVersion
-        targetSdk = 35 // 원하는 targetSdk 버전으로 지정
+        minSdk = 24
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+                manifestPlaceholders.put("nativeAppKey", gptProps["NativeKey"] ?: "")
+
+        manifestPlaceholders.put("naver-secret-client-id", gptProps["naver-secret-client-id"] ?: "")
+        manifestPlaceholders.put("naver-secret-client-secret", gptProps["naver-secret-client-secret"] ?: "")
+        resValue("string", "client_name", "YOUR_CLIENT_NAME")
     }
 
     compileOptions {
@@ -29,18 +41,16 @@ android {
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-
 }
+
 dependencies {
-    // ...existing code...
     implementation("com.kakao.sdk:v2-user:2.18.0")
 }
 
 flutter {
-
     source = "../.."
 }
