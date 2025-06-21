@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
+import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:logging/logging.dart';
+import 'package:logger/logger.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,8 +25,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final logger = Logger('LoginPage');
-
+    final logger = Logger(); // 별도 인자 없이 생성
     final double screenWidth = MediaQuery.of(context).size.width;
     final double containerWidth = screenWidth < 400 ? screenWidth * 0.95 : 350;
     final double iconHeight = screenWidth < 400 ? 22 : 28;
@@ -78,6 +78,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () async {
                     try {
                       bool isInstalled = await isKakaoTalkInstalled();
+
                       OAuthToken token;
                       if (isInstalled) {
                         // 카카오톡 앱 로그인
@@ -90,14 +91,16 @@ class _LoginPageState extends State<LoginPage> {
                       }
                       // 토큰을 Spring Boot 서버로 전송
                       final response = await http.post(
-                        Uri.parse('http://localhost:8083/api/kakaoToken'),
+                        Uri.parse('http://localhost:8083/api/kakao/kakaoToken'),
                         headers: {'Content-Type': 'application/json'},
                         body: jsonEncode({'kakaoToken': token.accessToken}),
                       );
 
                       print('서버 응답: ${response.body}');
                     } catch (error) {
-                      print('로그인 실패 $error');
+                      logger.log(Level.error, '로그인 실패: $error');
+                      logger.i('nativeAppKey: $nativeAppKey'); // info 레벨로 출력
+                      // print('로그인 실패 $error');
                     }
                   },
                   child: SizedBox(
@@ -128,8 +131,17 @@ class _LoginPageState extends State<LoginPage> {
                         padding: EdgeInsets.zero,
                       ),
                       onPressed: () async {
-                        final NaverLoginResult result =
-                            await FlutterNaverLogin.logIn();
+                        try {
+                          final NaverLoginResult res =
+                              await FlutterNaverLogin.logIn();
+                          if (res.status == NaverLoginStatus.loggedIn) {
+                            // Login successful
+                            final account = res.account;
+                            print('User name: ${account?.name}');
+                          }
+                        } catch (error) {
+                          print('Login failed: $error');
+                        }
                       },
                       child: SizedBox(
                         width: double.infinity, // 버튼 전체 너비

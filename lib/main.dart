@@ -13,6 +13,8 @@ Future<void> main() async {
     javaScriptAppKey: dotenv.env['javaScriptKey'],
   );
 
+  // FlutterNaverLogin.init is not defined; initialization is not required or handled differently in the latest package version.
+
   runApp(const MyApp());
 }
 
