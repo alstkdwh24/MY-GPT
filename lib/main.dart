@@ -9,6 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'package:logging/logging.dart';
 
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
