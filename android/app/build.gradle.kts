@@ -40,9 +40,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        resValue("string", "client_id", gptProperties.getProperty("client_id") );
-        resValue("string", "client_secret", gptProperties.getProperty("client_secret") );
-        resValue("string", "client_name", gptProperties.getProperty("client_name") );
+        resValue("string", "client_id", gptProperties.getProperty("client_id")?:"" );
+        resValue("string", "client_secret", gptProperties.getProperty("client_secret")?:"" );
+        resValue("string", "client_name", gptProperties.getProperty("client_name")?:"" );
   
     } // <-- Close defaultConfig here!
 

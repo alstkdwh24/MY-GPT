@@ -152,7 +152,7 @@ class _LoginPageState extends State<LoginPage> {
                               'https://nid.naver.com/oauth2.0/authorize?'
                               'response_type=code&'
                               'client_id=$client_id&' // 여기가 핵심!
-                              'redirect_uri=https://developers.naver.com/callback&'
+                              'redirect_uri=http://192.168.10.25:8083/api/naver/naverLoginComplete&'
                               'state=RANDOM_STATE';
                           if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
                             await launchUrl(Uri.parse(naverAuthUrl));
