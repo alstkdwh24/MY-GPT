@@ -8,14 +8,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val props = Properties().apply {
-    load(FileInputStream("../gpt.properties"))
+val gptProperties = Properties()
+val gptPropertiesFile = file("../../gpt.properties") // 상대경로로 지정
+
+if (gptPropertiesFile.exists()) {
+    gptProperties.load(FileInputStream(gptPropertiesFile))
+    println("client_id: ${gptProperties.getProperty("client_id")}")
+    println("client_secret: ${gptProperties.getProperty("client_secret")}")
+    println("client_name: ${gptProperties.getProperty("client_name")}")
 }
+
 
 android {
     namespace = "com.example.flutter_gpt_project"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973" // ← 이 줄을 추가하세요
+    ndkVersion = "27.0.12077973"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -26,19 +33,18 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+
+        
         applicationId = "com.example.flutter_gpt_project"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-    resValue("string", "client_id", props.getProperty("client_id"))
-    resValue("string", "client_secret", props.getProperty("client_secret"))
-    resValue("string", "client_name", props.getProperty("client_name"))
-    }
+        resValue("string", "client_id", gptProperties.getProperty("client_id") );
+        resValue("string", "client_secret", gptProperties.getProperty("client_secret") );
+        resValue("string", "client_name", gptProperties.getProperty("client_name") );
+  
+    } // <-- Close defaultConfig here!
 
     buildTypes {
         release {

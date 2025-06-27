@@ -4,7 +4,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
-            <meta-data
+                 <meta-data
         android:name="com.naver.sdk.clientId"
         android:value="@string/client_id" />
     <meta-data
@@ -53,4 +53,5 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+
 </manifest>
