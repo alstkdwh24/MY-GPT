@@ -2,13 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_naver_login/flutter_naver_login.dart';
-import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-import 'package:logging/logging.dart';
+import 'package:logger/logger.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,14 +23,13 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final logger = Logger('LoginPage');
-
+    final logger = Logger(); // 별도 인자 없이 생성
     final double screenWidth = MediaQuery.of(context).size.width;
     final double containerWidth = screenWidth < 400 ? screenWidth * 0.95 : 350;
-    final double iconHeight = screenWidth < 400 ? 22 : 28;
-    final double kakaoHeight = screenWidth < 400 ? 32 : 40;
+
     final double fontSize = screenWidth < 400 ? 16 : 18;
     final double titleFontSize = screenWidth < 400 ? 26 : 32;
+    final client_id = dotenv.env['client_id'];
 
     return Scaffold(
       resizeToAvoidBottomInset: true, // 기본값이지만 명시적으로 설정
@@ -78,6 +76,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () async {
                     try {
                       bool isInstalled = await isKakaoTalkInstalled();
+
                       OAuthToken token;
                       if (isInstalled) {
                         // 카카오톡 앱 로그인
@@ -89,15 +88,32 @@ class _LoginPageState extends State<LoginPage> {
                         print('카카오계정으로 로그인 성공');
                       }
                       // 토큰을 Spring Boot 서버로 전송
-                      final response = await http.post(
-                        Uri.parse('http://localhost:8083/api/kakaoToken'),
-                        headers: {'Content-Type': 'application/json'},
-                        body: jsonEncode({'kakaoToken': token.accessToken}),
-                      );
+                      try {
+                        final response = await http.post(
+                          Uri.parse(
+                            'http://localhost:8083/api/kakao/kakaoToken',
+                          ),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode({'kakaoToken': token.accessToken}),
+                        );
+                        logger.i('서버 응답: ${response.body}');
 
-                      print('서버 응답: ${response.body}');
+                        print('서버 응답: ${response.body}');
+                      } catch (e) {
+                        logger.log(Level.error, '서버 통신 실패: $e');
+                      } finally {
+                        // 토큰을 사용하여 사용자 정보 요청
+                        final userInfo = await http.post(
+                          Uri.parse("http://localhost:8083/api/kakao/userInfo"),
+                          headers: {'Content-Type': "application/json"},
+                          body: jsonEncode({'kakaoToken': token.accessToken}),
+                        );
+                        logger.i('사용자 정보: ${userInfo.body}');
+                      }
                     } catch (error) {
-                      print('로그인 실패 $error');
+                      logger.log(Level.error, '로그인 실패: $error');
+                      logger.i('nativeAppKey: $nativeAppKey'); // info 레벨로 출력
+                      // print('로그인 실패 $error');
                     }
                   },
                   child: SizedBox(
@@ -114,7 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Naver Login Button (이미지 왼쪽, 텍스트 중앙)
+                // Naver Loginㅂ Button (이미지 왼쪽, 텍스트 중앙)
                 LayoutBuilder(
                   builder: (context, constraints) {
                     var buttonWidth = constraints.maxWidth;
@@ -128,8 +144,27 @@ class _LoginPageState extends State<LoginPage> {
                         padding: EdgeInsets.zero,
                       ),
                       onPressed: () async {
-                        final NaverLoginResult result =
-                            await FlutterNaverLogin.logIn();
+                        try {
+                          // 먼저 로그아웃하여 깨끗한 상태로 시작
+
+                          // 네이버 OAuth URL로 직접 웹뷰 띄우기
+                          final String naverAuthUrl =
+                              'https://nid.naver.com/oauth2.0/authorize?'
+                              'response_type=code&'
+                              'client_id=$client_id&' // 여기가 핵심!
+                              'redirect_uri=http://192.168.10.25:8083/api/naver/naverLoginComplete&'
+                              'state=RANDOM_STATE';
+                          if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
+                            await launchUrl(Uri.parse(naverAuthUrl));
+                          }
+                          if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
+                            await launchUrl(Uri.parse(naverAuthUrl));
+                          }
+                          logger.i(naverAuthUrl);
+                        } catch (e) {
+                          logger.log(Level.error, '네이버 로그인 실패: $e');
+                          // info 레벨로 출력
+                        }
                       },
                       child: SizedBox(
                         width: double.infinity, // 버튼 전체 너비

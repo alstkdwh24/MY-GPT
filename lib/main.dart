@@ -1,8 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gpt_project/draw_menu.dart';
 import 'package:http/http.dart' as http;
+import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
+import 'package:logging/logging.dart';
+
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +20,8 @@ Future<void> main() async {
     nativeAppKey: dotenv.env['nativeAppKey'],
     javaScriptAppKey: dotenv.env['javaScriptKey'],
   );
+
+  // FlutterNaverLogin.init is not defined; initialization is not required or handled differently in the latest package version.
 
   runApp(const MyApp());
 }
@@ -66,13 +76,31 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  Logger logger = Logger('MyHomePageState');
   String _response = "Loading...";
+  AppLinks? _appLinks;
+
+  StreamSubscription<Uri>? _subscription;
 
   void initState() {
     super.initState();
+    _appLinks = AppLinks();
+
+    _subscription = _appLinks!.uriLinkStream.listen((Uri? uri) {
+      if (uri != null &&
+          uri.scheme == "myapp" &&
+          uri.host == "naverloginComplete") {
+        logger.info("Naver login completed with URI: $uri");
+      }
+    });
     // fetchData();
     // 초기화 작업을 여기에 추가할 수 있습니다.
     // 예를 들어, API 호출이나 데이터베이스 초기화 등을 수행할 수 있습니다.
+  }
+
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchData() async {
@@ -181,7 +209,37 @@ class _MyHomePageState extends State<MyHomePage> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: IconButton(
-                              onPressed: () {},
+                              onPressed: () async {
+                                print("Search button pressed");
+                                try {
+                                  final response = await http.post(
+                                    Uri.parse(
+                                      'http://192.168.10.25:8083/api/askGPT/groqAsk',
+                                    ),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: jsonEncode({'message': '안녕'}),
+                                  );
+                                  print(response.statusCode);
+                                  if (response.statusCode == 200) {
+                                    setState(() {
+                                      _response = utf8.decode(
+                                        response.bodyBytes,
+                                      ); // 한글 깨짐 방지
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _response =
+                                          "오류 발생: ${response.statusCode}";
+                                    });
+                                  }
+                                } catch (e) {
+                                  setState(() {
+                                    _response = "네트워크 오류: $e";
+                                  });
+                                }
+                              },
                               icon: Icon(
                                 Icons.search_rounded,
                                 size: 32,
