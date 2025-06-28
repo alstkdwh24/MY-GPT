@@ -76,6 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Logger logger = Logger('MyHomePageState');
   String _response = "Loading...";
   AppLinks? _appLinks;
+  final TextEditingController _gptTextController = TextEditingController();
 
   StreamSubscription<Uri>? _subscription;
 
@@ -127,6 +128,36 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _response = "Hello, World!";
     });
+  }
+
+  Future<void> _sendGptRequest() async {
+    String textInput = _gptTextController.text.trim();
+    print("Search button pressed");
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.10.25:8083/api/askGPT/groqAsk'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'message': textInput}),
+      );
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        setState(() {
+          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
+          _gptTextController.clear(); // 입력창 비우기
+        });
+      } else {
+        setState(() {
+          _response = "오류 발생: ${response.statusCode}";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _response = "네트워크 오류: $e";
+        _gptTextController.clear(); // 입력창 비우기
+      });
+    }
+    // 여기에 GPT 요청을 보내는 로직을 추가합니다.
+    // 예시로, 2초 후에 "GPT Response"를 응답으로 설정합니다.
   }
 
   @override
@@ -185,11 +216,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                   height: height * 0.78,
                                   padding: EdgeInsets.symmetric(horizontal: 8),
                                   child: TextField(
-                                    maxLines: null, // 줄바꿈 허용
+                                    maxLines: 1,
+                                    controller: _gptTextController, // 줄바꿈 허용
 
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                     ),
+                                    onSubmitted: (value) {
+                                      _sendGptRequest(); // 엔터키로도 동작
+                                    },
                                   ),
                                 );
                               },
@@ -207,35 +242,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             child: IconButton(
                               onPressed: () async {
-                                print("Search button pressed");
-                                try {
-                                  final response = await http.post(
-                                    Uri.parse(
-                                      'http://192.168.10.25:8083/api/askGPT/groqAsk',
-                                    ),
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: jsonEncode({'message': '안녕'}),
-                                  );
-                                  print(response.statusCode);
-                                  if (response.statusCode == 200) {
-                                    setState(() {
-                                      _response = utf8.decode(
-                                        response.bodyBytes,
-                                      ); // 한글 깨짐 방지
-                                    });
-                                  } else {
-                                    setState(() {
-                                      _response =
-                                          "오류 발생: ${response.statusCode}";
-                                    });
-                                  }
-                                } catch (e) {
-                                  setState(() {
-                                    _response = "네트워크 오류: $e";
-                                  });
-                                }
+                                _sendGptRequest();
                               },
                               icon: Icon(
                                 Icons.search_rounded,
