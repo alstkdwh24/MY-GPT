@@ -6,11 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gpt_project/draw_menu.dart';
 import 'package:http/http.dart' as http;
-import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
-import 'package:logging/logging.dart';
-
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
-
+import 'package:logging/logging.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,6 +77,9 @@ class _MyHomePageState extends State<MyHomePage> {
   String _response = "Loading...";
   AppLinks? _appLinks;
   final TextEditingController _gptTextController = TextEditingController();
+  final TextEditingController _gptListTextController = TextEditingController();
+  List<String> messages = [];
+  List<String> _gptList = [];
 
   StreamSubscription<Uri>? _subscription;
 
@@ -134,19 +134,34 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _sendGptRequest() async {
-    String textInput = _gptTextController.text.trim();
+    final userInput = _gptTextController.text.trim();
+    if (userInput.isEmpty) return;
+
+    setState(() {
+      _gptList.add("나:  ${_gptTextController.text}");
+      messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
+      _gptTextController.clear(); // 입력창 비우기
+    });
+
+    _gptListTextController.text = messages.join('\n');
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.10.25:8083/api/askGPT/groqAsk'),
+        Uri.parse('http://172.30.1.81:8083/api/askGPT/groqAsk'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': textInput}),
+        body: jsonEncode({'message': _gptListTextController.text}),
       );
-      print(response.statusCode);
+      print("Response status code: ${response.body}");
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      print("Response data: $data");
+      String gptResponse =
+          data['choices'][0]['message']['content'] ?? 'No response from GPT';
+      print("GPT Response: $gptResponse");
       if (response.statusCode == 200) {
         setState(() {
-          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
-          _gptTextController.clear(); // 입력창 비우기
+          _gptList.add("GPT: $gptResponse");
+          messages.add("GPT: $gptResponse");
+          _response = utf8.decode(response.bodyBytes);
         });
       } else {
         setState(() {
@@ -156,7 +171,6 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       setState(() {
         _response = "네트워크 오류: $e";
-        _gptTextController.clear(); // 입력창 비우기
       });
     }
     // 여기에 GPT 요청을 보내는 로직을 추가합니다.
@@ -170,117 +184,150 @@ class _MyHomePageState extends State<MyHomePage> {
     final inWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       resizeToAvoidBottomInset: true, // 기본값이지만 명시적으로 설정
-
       appBar: AppBar(backgroundColor: orangeColor, title: Text(widget.title)),
       drawer: const DrawMenuOne(),
-
-      body: SingleChildScrollView(
+      body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Column의 높이를 최소화
-
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Color.fromRGBO(246, 234, 216, 1),
-              ),
-              width: double.infinity,
-              height: MediaQuery.of(context).size.height * 0.86 - 80,
-            ),
-            Container(
-              decoration: BoxDecoration(color: orangeColor),
-              width: double.infinity,
-              height: MediaQuery.of(context).size.height * 0.14,
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.height * 0.08,
-                    child: Row(
-                      children: [
-                        Flexible(flex: 2, child: Container()),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color.fromRGBO(246, 234, 216, 1),
+                ),
+                width: double.infinity,
+                // 여기에 실제 대화 내용이나 리스트 등을 배치
+                child: ListView.builder(
+                  padding: EdgeInsets.all(16),
+                  itemCount: _gptList.length,
+                  itemBuilder: (context, index) {
+                    final msg = _gptList[index];
+                    final isUser = msg.startsWith("나: ");
+                    return Align(
+                      alignment:
+                          isUser ? Alignment.centerRight : Alignment.centerLeft,
 
-                        Flexible(
-                          flex: 27,
-                          child: SizedBox(
-                            child: LayoutBuilder(
-                              builder: (
-                                BuildContext context,
-                                BoxConstraints constraints,
-                              ) {
-                                var width = constraints.maxWidth;
-                                var height = constraints.maxHeight;
-
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    color: Colors.white,
-                                  ),
-                                  width: width * 0.93,
-                                  height: height * 0.78,
-                                  padding: EdgeInsets.symmetric(horizontal: 8),
-                                  child: TextField(
-                                    maxLines: 1,
-                                    controller: _gptTextController, // 줄바꿈 허용
-
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                    ),
-                                    onSubmitted: (value) {
-                                      _sendGptRequest(); // 엔터키로도 동작
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                      child: Container(
+                        margin: EdgeInsets.symmetric(vertical: 4),
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color:
+                              isUser
+                                  ? orangeColor.withOpacity(0.8)
+                                  : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        Flexible(flex: 2, child: Container()),
-                        Flexible(
-                          flex: 4,
-
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
+                        child: Column(
+                          crossAxisAlignment:
+                              isUser
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isUser ? "나" : "GPT",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Colors.black87,
+                              ),
+                              textAlign:
+                                  isUser ? TextAlign.right : TextAlign.left,
                             ),
-                            child: IconButton(
-                              onPressed: () async {
-                                _sendGptRequest();
-                              },
-                              icon: Icon(
-                                Icons.search_rounded,
-                                size: 32,
-                                color: orangeColor,
+                            SizedBox(height: 4),
+                            Text(
+                              isUser
+                                  ? msg.replaceFirst("나: ", "")
+                                  : msg.replaceFirst("GPT: ", ""),
+                              style: TextStyle(fontSize: 16),
+                              textAlign:
+                                  isUser ? TextAlign.right : TextAlign.left,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              bottom: true,
+              child: Container(
+                decoration: BoxDecoration(color: orangeColor),
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 8), // 하단 여백 추가
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height * 0.076,
+                      child: Row(
+                        children: [
+                          Flexible(flex: 2, child: Container()),
+                          Flexible(
+                            flex: 27,
+                            child: SizedBox(
+                              child: LayoutBuilder(
+                                builder: (
+                                  BuildContext context,
+                                  BoxConstraints constraints,
+                                ) {
+                                  var width = constraints.maxWidth;
+                                  var height = constraints.maxHeight;
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: Colors.white,
+                                    ),
+                                    width: width * 0.93,
+                                    height: height * 0.76,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: TextField(
+                                      maxLines: 1,
+                                      controller: _gptTextController,
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                      ),
+                                      onSubmitted: (value) {
+                                        _sendGptRequest();
+                                      },
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          Flexible(flex: 2, child: Container()),
+                          Flexible(
+                            flex: 4,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                onPressed: () async {
+                                  setState(() {});
+                                  _sendGptRequest();
+                                },
+                                icon: Icon(
+                                  Icons.search_rounded,
+                                  size: 32,
+                                  color: orangeColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  // Container(
-                  //   decoration: BoxDecoration(color: Colors.black),
-                  //   width: double.infinity,
-                  //   height: inHeight * 0.06,
-                  //   child: Row(
-                  //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  //     children: [
-                  //       IconButton(
-                  //         icon: Icon(Icons.arrow_back_ios),
-                  //         onPressed: () {},
-                  //       ),
-                  //       IconButton(
-                  //         icon: Icon(Icons.home, size: 36),
-                  //         onPressed: () {},
-                  //       ),
-                  //       IconButton(
-                  //         icon: Icon(Icons.arrow_forward_ios),
-                  //         onPressed: () {},
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
