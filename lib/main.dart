@@ -105,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> fetchData() async {
-    final url = Uri.parse('http://localhost:8083/api/hello');
+    final url = Uri.parse('http://3.38.89.59:8083/api/hello');
 
     try {
       final response = await http.get(url);
@@ -137,6 +137,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final userInput = _gptTextController.text.trim();
     if (userInput.isEmpty) return;
 
+    _gptListTextController.text = messages.join('\n');
+
     setState(() {
       _gptList.add("나:  ${_gptTextController.text}");
       messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
@@ -144,12 +146,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     _gptListTextController.text = messages.join('\n');
+
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://172.30.1.81:8083/api/askGPT/groqAsk'),
+        Uri.parse('http://3.38.89.59:8083/api/askGPT/groqAsk'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': _gptListTextController.text}),
+        body: jsonEncode({'message': userInput}),
       );
       print("Response status code: ${response.body}");
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -161,7 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           _gptList.add("GPT: $gptResponse");
           messages.add("GPT: $gptResponse");
-          _response = utf8.decode(response.bodyBytes);
+
+          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
         });
       } else {
         setState(() {
@@ -171,6 +175,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       setState(() {
         _response = "네트워크 오류: $e";
+        _gptTextController.clear(); // 입력창 비우기
       });
     }
     // 여기에 GPT 요청을 보내는 로직을 추가합니다.
@@ -222,7 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ? CrossAxisAlignment.end
                                   : CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            SelectableText(
                               isUser ? "나" : "GPT",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -233,7 +238,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   isUser ? TextAlign.right : TextAlign.left,
                             ),
                             SizedBox(height: 4),
-                            Text(
+                            SelectableText(
                               isUser
                                   ? msg.replaceFirst("나: ", "")
                                   : msg.replaceFirst("GPT: ", ""),
