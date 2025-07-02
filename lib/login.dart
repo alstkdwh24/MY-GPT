@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_gpt_project/joinPage.dart';
+import 'package:flutter_gpt_project/topPageHeader.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
@@ -20,16 +22,18 @@ class _LoginPageState extends State<LoginPage> {
   // Define your Kakao native app key here
   final String nativeAppKey =
       dotenv.env['nativeAppKey'] ?? 'YOUR_NATIVE_APP_KEY';
+  final logger = Logger(); // 별도 인자 없이 생성
+  final client_id = dotenv.env['client_id'];
+  final String redirectUri =
+      "http://3.38.89.59:8083/api/naver/naverLoginComplete";
 
   @override
   Widget build(BuildContext context) {
-    final logger = Logger(); // 별도 인자 없이 생성
     final double screenWidth = MediaQuery.of(context).size.width;
     final double containerWidth = screenWidth < 400 ? screenWidth * 0.95 : 350;
 
     final double fontSize = screenWidth < 400 ? 16 : 18;
     final double titleFontSize = screenWidth < 400 ? 26 : 32;
-    final client_id = dotenv.env['client_id'];
 
     return Scaffold(
       resizeToAvoidBottomInset: true, // 기본값이지만 명시적으로 설정
@@ -64,164 +68,184 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 32),
                 // Kakao Login Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.yellow[700],
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  onPressed: () async {
-                    try {
-                      bool isInstalled = await isKakaoTalkInstalled();
-
-                      OAuthToken token;
-                      if (isInstalled) {
-                        // 카카오톡 앱 로그인
-                        token = await UserApi.instance.loginWithKakaoTalk();
-                        print('카카오톡으로 로그인 성공');
-                      } else {
-                        // 카카오계정(웹) 로그인
-                        token = await UserApi.instance.loginWithKakaoAccount();
-                        print('카카오계정으로 로그인 성공');
-                      }
-                      // 토큰을 Spring Boot 서버로 전송
-                      try {
-                        final response = await http.post(
-                          Uri.parse(
-                            'http://localhost:8083/api/kakao/kakaoToken',
-                          ),
-                          headers: {'Content-Type': 'application/json'},
-                          body: jsonEncode({'kakaoToken': token.accessToken}),
-                        );
-                        logger.i('서버 응답: ${response.body}');
-
-                        print('서버 응답: ${response.body}');
-                      } catch (e) {
-                        logger.log(Level.error, '서버 통신 실패: $e');
-                      } finally {
-                        // 토큰을 사용하여 사용자 정보 요청
-                        final userInfo = await http.post(
-                          Uri.parse("http://localhost:8083/api/kakao/userInfo"),
-                          headers: {'Content-Type': "application/json"},
-                          body: jsonEncode({'kakaoToken': token.accessToken}),
-                        );
-                        logger.i('사용자 정보: ${userInfo.body}');
-                      }
-                    } catch (error) {
-                      logger.log(Level.error, '로그인 실패: $error');
-                      logger.i('nativeAppKey: $nativeAppKey'); // info 레벨로 출력
-                      // print('로그인 실패 $error');
-                    }
-                  },
-                  child: SizedBox(
-                    height: 48,
-                    width: double.infinity,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        'assets/kakao_login_large_wide.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
+                kakaoLogin(), //카카오 로그인 로직
                 const SizedBox(height: 16),
 
                 // Naver Loginㅂ Button (이미지 왼쪽, 텍스트 중앙)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    var buttonWidth = constraints.maxWidth;
-                    return ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF03C75A),
-                        minimumSize: Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      onPressed: () async {
-                        try {
-                          // 먼저 로그아웃하여 깨끗한 상태로 시작
-
-                          // 네이버 OAuth URL로 직접 웹뷰 띄우기
-                          final String naverAuthUrl =
-                              'https://nid.naver.com/oauth2.0/authorize?'
-                              'response_type=code&'
-                              'client_id=$client_id&' // 여기가 핵심!
-                              'redirect_uri=http://3.38.89.59:8083/api/naver/naverLoginComplete&'
-                              'state=RANDOM_STATE';
-                          if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
-                            await launchUrl(Uri.parse(naverAuthUrl));
-                          }
-                          if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
-                            await launchUrl(Uri.parse(naverAuthUrl));
-                          }
-                          logger.i(naverAuthUrl);
-                        } catch (e) {
-                          logger.log(Level.error, '네이버 로그인 실패: $e');
-                          // info 레벨로 출력
-                        }
-                      },
-                      child: SizedBox(
-                        width: double.infinity, // 버튼 전체 너비
-                        height: 48,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Positioned(
-                              left: 6, // 버튼의 가장 왼쪽에 딱 붙임
-                              child: Image.asset(
-                                'assets/naver_icon.png',
-                                width: 40,
-                                height: 48,
-                              ),
-                            ),
-
-                            Positioned(
-                              left: 126,
-                              child: Text(
-                                '네이버 로그인',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: fontSize,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                naverLogin(fontSize: fontSize),
 
                 const SizedBox(height: 16),
                 // Google Login Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 48),
-                    side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 0,
-                    padding: EdgeInsets.zero,
-                  ),
-                  onPressed: () {},
-                  child: SizedBox(
-                    width: double.infinity, // 버튼 전체 너비
+                googleLogin(fontSize: fontSize),
+                const SizedBox(height: 16),
+                // Apple Login Button
+                non_memberLogin(fontSize: fontSize),
+                const SizedBox(height: 16),
+                // JO-JOHA 회원가입 Button
+                My_gptJoin(fontSize: fontSize),
+                const SizedBox(height: 16),
+                // JO-JOHA 로그인 Button
+                My_gptLogin(fontSize: fontSize),
+                // 비회원 로그인 Button
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget kakaoLogin() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.yellow[700],
+        minimumSize: Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.zero,
+      ),
+      onPressed: () async {
+        try {
+          bool isInstalled = await isKakaoTalkInstalled();
+
+          OAuthToken token;
+          if (isInstalled) {
+            // 카카오톡 앱 로그인
+            token = await UserApi.instance.loginWithKakaoTalk();
+            print('카카오톡으로 로그인 성공');
+          } else {
+            // 카카오계정(웹) 로그인
+            token = await UserApi.instance.loginWithKakaoAccount();
+            print('카카오계정으로 로그인 성공');
+          }
+          // 토큰을 Spring Boot 서버로 전송
+          try {
+            final response = await http.post(
+              Uri.parse('http://3.38.89.59:8083/api/kakao/kakaoToken'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'kakaoToken': token.accessToken}),
+            );
+            logger.i('서버 응답: ${response.body}');
+
+            print('서버 응답: ${response.body}');
+          } catch (e) {
+            logger.log(Level.error, '서버 통신 실패: $e');
+          } finally {
+            // 토큰을 사용하여 사용자 정보 요청
+            final userInfo = await http.post(
+              Uri.parse("http://3.38.89.59:8083/api/kakao/userInfo"),
+              headers: {'Content-Type': "application/json"},
+              body: jsonEncode({'kakaoToken': token.accessToken}),
+            );
+            logger.i('사용자 정보: ${userInfo.body}');
+          }
+        } catch (error) {
+          logger.log(Level.error, '로그인 실패: $error');
+          logger.i('nativeAppKey: $nativeAppKey'); // info 레벨로 출력
+          // print('로그인 실패 $error');
+        }
+      },
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/kakao_login_large_wide.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget naverLogin({required double fontSize}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var buttonWidth = constraints.maxWidth;
+        return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF03C75A),
+            minimumSize: Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          onPressed: () async {
+            try {
+              // 먼저 로그아웃하여 깨끗한 상태로 시작
+
+              // 네이버 OAuth URL로 직접 웹뷰 띄우기
+              final String naverAuthUrl =
+                  'https://nid.naver.com/oauth2.0/authorize?'
+                  'response_type=code&'
+                  'client_id=$client_id&' // 여기가 핵심!
+                  'redirect_uri=$redirectUri&'
+                  'state=RANDOM_STATE';
+              if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
+                await launchUrl(Uri.parse(naverAuthUrl));
+              }
+              if (await canLaunchUrl(Uri.parse(naverAuthUrl))) {
+                await launchUrl(Uri.parse(naverAuthUrl));
+              }
+              logger.i(naverAuthUrl);
+            } catch (e) {
+              logger.log(Level.error, '네이버 로그인 실패: $e');
+              // info 레벨로 출력
+            }
+          },
+          child: SizedBox(
+            width: double.infinity, // 버튼 전체 너비
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  left: 6, // 버튼의 가장 왼쪽에 딱 붙임
+                  child: Image.asset(
+                    'assets/naver_icon.png',
+                    width: 40,
                     height: 48,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 14,
-                          child: SvgPicture.string(
-                            '''
+                  ),
+                ),
+
+                Positioned(
+                  left: 126,
+                  child: Text(
+                    '네이버 로그인',
+                    style: TextStyle(color: Colors.white, fontSize: fontSize),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget googleLogin({required double fontSize}) {
+    return // Google Login Button
+    ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        minimumSize: Size(double.infinity, 48),
+        side: const BorderSide(color: Colors.grey),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 0,
+        padding: EdgeInsets.zero,
+      ),
+      onPressed: () {},
+      child: SizedBox(
+        width: double.infinity, // 버튼 전체 너비
+        height: 48,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 14,
+              child: SvgPicture.string(
+                '''
 <svg width="26" height="26" viewBox="0 0 48 48">
   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -230,156 +254,143 @@ class _LoginPageState extends State<LoginPage> {
   <path fill="none" d="M0 0h48v48H0z"/>
 </svg>
                         ''',
-                            width: 40,
-                            height: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Positioned(
-                          left: 130,
-                          child: Text(
-                            '구글 로그인',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Apple Login Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                    elevation: 0,
-                  ),
-                  onPressed: () {},
-                  child: SizedBox(
-                    width: double.infinity, // 버튼 전체 너비
-                    height: 48,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 2,
-                          child: Image.asset(
-                            'assets/appleid_button.png',
-                            width: 50,
-                            height: 60,
-                          ),
-                        ),
-
-                        const SizedBox(width: 12),
-                        Positioned(
-                          right: 117,
-                          child: Text(
-                            '애플 로그인',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fontSize,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // JO-JOHA 회원가입 Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[50],
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                    elevation: 0,
-                  ),
-                  onPressed: () {},
-                  child: SizedBox(
-                    height: 48,
-                    width: double.infinity,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 8,
-                          child: Image.asset(
-                            'assets/mail.png',
-                            width: 40,
-                            height: 36,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Positioned(
-                          right: 96,
-                          child: Text(
-                            'JO-GPT 회원가입',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontSize: fontSize,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // JO-JOHA 로그인 Button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                    elevation: 0,
-                  ),
-                  onPressed: () async {},
-                  child: SizedBox(
-                    height: 48,
-                    width: double.infinity,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 8,
-                          child: Image.asset(
-                            'assets/user.png',
-                            width: 40,
-                            height: 36,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Positioned(
-                          right: 100,
-                          child: Text(
-                            'JO-GPT 로그인',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: fontSize,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                width: 40,
+                height: 24,
+              ),
             ),
+            const SizedBox(width: 12),
+            Positioned(
+              left: 130,
+              child: Text(
+                '구글 로그인',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget non_memberLogin({required double fontSize}) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.black,
+        minimumSize: Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.zero,
+        elevation: 0,
+      ),
+      onPressed: () {},
+      child: SizedBox(
+        width: double.infinity, // 버튼 전체 너비
+        height: 48,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 7,
+              child: Image.asset('assets/people.png', width: 40, height: 50),
+            ),
+
+            const SizedBox(width: 12),
+            Positioned(
+              right: 107,
+              child: Text(
+                '비회원 로그인',
+                style: TextStyle(color: Colors.white, fontSize: fontSize),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget My_gptJoin({required double fontSize}) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[50],
+        minimumSize: Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.zero,
+        elevation: 0,
+      ),
+      onPressed: () {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder:
+                (context, animation, secondaryAnimation) => const Joinpage(),
           ),
+        );
+      },
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 8,
+              child: Image.asset('assets/mail.png', width: 40, height: 36),
+            ),
+            const SizedBox(width: 12),
+            Positioned(
+              right: 90,
+              child: Text(
+                'JO-GPT 회원가입',
+                style: TextStyle(color: Colors.blue, fontSize: fontSize),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget My_gptLogin({required double fontSize}) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue,
+        minimumSize: Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.zero,
+        elevation: 0,
+      ),
+      onPressed: () async {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder:
+                (context, animation, secondaryAnimation) =>
+                    const TopPageHeader(),
+          ),
+        );
+      },
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 8,
+              child: Image.asset('assets/user.png', width: 40, height: 36),
+            ),
+            const SizedBox(width: 12),
+            Positioned(
+              right: 100,
+              child: Text(
+                'JO-GPT 로그인',
+                style: TextStyle(color: Colors.white, fontSize: fontSize),
+              ),
+            ),
+          ],
         ),
       ),
     );
