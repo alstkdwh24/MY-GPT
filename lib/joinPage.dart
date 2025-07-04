@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class Joinpage extends StatefulWidget {
   const Joinpage({super.key});
@@ -114,9 +115,24 @@ class _JoinpageState extends State<Joinpage> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         // 회원가입 처리 로직 작성
                         // idController.text, pwController.text 등 사용
+                        final response = await http.post(
+                          Uri.parse("http://172.30.1.81:8083/api/jwt/signUp"),
+                          headers: {"Content-Type": "application/json"},
+                          body:
+                              {
+                                "userId": _idController.text,
+                                "userPw": _pwController.text,
+                                "name": _nameController.text,
+                                "email": _emailController.text,
+                                "nickname": _nicknameController.text,
+                              }.toString(),
+                        );
+                        response.body.isNotEmpty
+                            ? print("회원가입 성공: ${response.body}")
+                            : print("회원가입 실패: ${response.statusCode}");
                       },
                       child: const Text(
                         '회원가입',
