@@ -177,21 +177,19 @@ class _MyHomePageState extends State<MyHomePage>
       _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
 
       messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
-      message =
-          messages.map((msg) => {'role': 'user', 'message': msg}).toList();
 
       _gptTextController.clear(); // 입력창 비우기
     });
-
+    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.110.215:8083/api/askGPT/GPTAsk'),
+        Uri.parse('http://172.30.1.81:8083/api/askGPT/GPTAsk'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': message}),
+        body: jsonEncode({'messages': message}),
       );
 
-      print("jsonRequest: ${jsonEncode({'message': message})}");
+      print("jsonRequest: ${jsonEncode({'messages': message})}");
 
       print("Response status code: ${response.body}");
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -209,8 +207,6 @@ class _MyHomePageState extends State<MyHomePage>
             _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
           }
           messages.add("GPT: $gptResponse");
-          List<Map<String, String>> message =
-              messages.map((msg) => {'role': 'user', 'message': msg}).toList();
 
           _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
         });
@@ -239,13 +235,13 @@ class _MyHomePageState extends State<MyHomePage>
 
       _gptTextController.clear(); // 입력창 비우기
     });
-
+    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://3.38.89.59:8083/api/askGPT/groqAsk'),
+        Uri.parse('http://172.30.1.81:8083/api/askGPT/groqAsk'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': userInput}),
+        body: jsonEncode({'messages': message}),
       );
       print("Response status code: ${response.body}");
       final Map<String, dynamic> data = jsonDecode(response.body);
