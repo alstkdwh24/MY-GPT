@@ -235,7 +235,17 @@ class _LoginPageState extends State<LoginPage> {
         elevation: 0,
         padding: EdgeInsets.zero,
       ),
-      onPressed: () {},
+      onPressed: () async {
+        final url = Uri.parse(
+          'http://10.0.2.2:8083/oauth-login/login/google_login',
+        );
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          // 오류 처리
+          print('구글 로그인 페이지를 열 수 없습니다.');
+        }
+      },
       child: SizedBox(
         width: double.infinity, // 버튼 전체 너비
         height: 48,

@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_gpt_project/main.dart';
+import 'package:http/http.dart' as http;
 
 class TopPageHeader extends StatefulWidget {
   const TopPageHeader({super.key});
@@ -9,7 +13,8 @@ class TopPageHeader extends StatefulWidget {
 
 class _TopPageHeader extends State<TopPageHeader> {
   final orangeColor = Color.fromRGBO(255, 165, 0, 1.0);
-
+  final TextEditingController _idController = TextEditingController();
+  final TextEditingController _pwController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -47,6 +52,8 @@ class _TopPageHeader extends State<TopPageHeader> {
                   SizedBox(
                     height: 42,
                     child: TextField(
+                      controller: _idController,
+
                       decoration: const InputDecoration(
                         labelText: '아이디',
                         border: OutlineInputBorder(),
@@ -57,6 +64,8 @@ class _TopPageHeader extends State<TopPageHeader> {
                   SizedBox(
                     height: 42,
                     child: TextField(
+                      controller: _pwController,
+                      obscureText: true,
                       decoration: const InputDecoration(
                         labelText: '비밀번호',
                         border: OutlineInputBorder(),
@@ -75,7 +84,46 @@ class _TopPageHeader extends State<TopPageHeader> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final response = await http.post(
+                          Uri.parse("http://3.38.89.59:8083/api/jwt/login"),
+                          headers: {"Content-Type": "application/json"},
+
+                          body: jsonEncode({
+                            "user_id": _idController.text,
+                            "user_pw": _pwController.text,
+                          }),
+                        );
+                        if (response.statusCode == 200) {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      MyHomePage(
+                                        title: "MY GPT",
+                                        selectedOption: 'MY GPT',
+                                      ),
+                              transitionsBuilder: (
+                                context,
+                                animation,
+                                secondaryAnimation,
+                                child,
+                              ) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              transitionDuration: Duration(
+                                milliseconds: 400,
+                              ), // 속도 조절
+                            ),
+                          );
+                        } else {
+                          print("로그인 실패: ${response.statusCode}");
+                        }
+                      },
                       child: Container(
                         child: Text(
                           "로그인",
