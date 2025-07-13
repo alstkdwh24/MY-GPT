@@ -25,7 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final logger = Logger(); // 별도 인자 없이 생성
   final client_id = dotenv.env['client_id'];
   final String redirectUri =
-      "http://3.38.89.59:8083/api/naver/naverLoginComplete";
+      "https://jo-my-gpt.com/api/naver/naverLoginComplete";
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +120,7 @@ class _LoginPageState extends State<LoginPage> {
           // 토큰을 Spring Boot 서버로 전송
           try {
             final response = await http.post(
-              Uri.parse('http://3.38.89.59:8083/api/kakao/kakaoToken'),
+              Uri.parse('https://jo-my-gpt.com/api/kakao/kakaoToken'),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({'kakaoToken': token.accessToken}),
             );
@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
           } finally {
             // 토큰을 사용하여 사용자 정보 요청
             final userInfo = await http.post(
-              Uri.parse("http://3.38.89.59:8083/api/kakao/userInfo"),
+              Uri.parse("https://jo-my-gpt.com/api/kakao/userInfo"),
               headers: {'Content-Type': "application/json"},
               body: jsonEncode({'kakaoToken': token.accessToken}),
             );
@@ -237,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       onPressed: () async {
         final url = Uri.parse(
-          'http://10.0.2.2:8083/oauth-login/login/google_login',
+          'https://jo-my-gpt.com/oauth2/authorization/google',
         );
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
