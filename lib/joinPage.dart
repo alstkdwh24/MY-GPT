@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_gpt_project/main.dart';
 import 'package:http/http.dart' as http;
 
 class Joinpage extends StatefulWidget {
@@ -116,23 +119,49 @@ class _JoinpageState extends State<Joinpage> {
                         ),
                       ),
                       onPressed: () async {
-                        // 회원가입 처리 로직 작성
-                        // idController.text, pwController.text 등 사용
                         final response = await http.post(
-                          Uri.parse("http://172.30.1.81:8083/api/jwt/signUp"),
+                          Uri.parse("http://3.38.89.59:8083/api/jwt/signUp"),
                           headers: {"Content-Type": "application/json"},
-                          body:
-                              {
-                                "userId": _idController.text,
-                                "userPw": _pwController.text,
-                                "name": _nameController.text,
-                                "email": _emailController.text,
-                                "nickname": _nicknameController.text,
-                              }.toString(),
+                          body: jsonEncode({
+                            "userId": _idController.text,
+                            "userPw": _pwController.text,
+                            "name": _nameController.text,
+                            "email": _emailController.text,
+                            "nickname": _nicknameController.text,
+                          }),
                         );
-                        response.body.isNotEmpty
-                            ? print("회원가입 성공: ${response.body}")
-                            : print("회원가입 실패: ${response.statusCode}");
+                        if (response.statusCode == 200) {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder:
+                                  (context, animation, secondaryAnimation) =>
+                                      MyHomePage(
+                                        title: "MY GPT",
+                                        selectedOption: 'MY GPT',
+                                      ),
+                              transitionsBuilder: (
+                                context,
+                                animation,
+                                secondaryAnimation,
+                                child,
+                              ) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                              transitionDuration: Duration(
+                                milliseconds: 400,
+                              ), // 속도 조절
+                            ),
+                          );
+                        } else {
+                          print("로그인 실패: ${response.statusCode}");
+                        }
+                        print(
+                          "회원가입 성공: ${jsonEncode({"userId": _idController.text, "userPw": _pwController.text, "name": _nameController.text, "email": _emailController.text, "nickname": _nicknameController.text})}",
+                        );
                       },
                       child: const Text(
                         '회원가입',

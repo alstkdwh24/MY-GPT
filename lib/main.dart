@@ -184,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage>
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://172.30.1.81:8083/api/askGPT/GPTAsk'),
+        Uri.parse('https://jo-my-gpt.com/api/askGPT/GPTAsk'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'messages': message}),
       );
@@ -239,7 +239,7 @@ class _MyHomePageState extends State<MyHomePage>
     print("Search button pressed");
     try {
       final response = await http.post(
-        Uri.parse('http://172.30.1.81:8083/api/askGPT/groqAsk'),
+        Uri.parse('https://jo-my-gpt.com/api/askGPT/groqAsk'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'messages': message}),
       );
