@@ -97,6 +97,7 @@ class _MyHomePageState extends State<MyHomePage>
   late AnimationController _controller;
   late Animation<int> _dotCount;
   List<Map<String, String>> message = [];
+  late String nickName;
   void initState() {
     super.initState();
     _selectedOption = widget.selectedOption;
@@ -167,116 +168,232 @@ class _MyHomePageState extends State<MyHomePage>
     }
   }
 
-  Future<void> _sendLimdaGptRequest() async {
-    final userInput = _gptTextController.text.trim();
-
-    if (userInput.isEmpty) return;
-
-    setState(() {
-      _gptList.add("나:  ${_gptTextController.text}");
-      _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
-
-      messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
-
-      _gptTextController.clear(); // 입력창 비우기
-    });
-    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
-    print("Search button pressed");
-    try {
-      final response = await http.post(
-        Uri.parse('https://jo-my-gpt.com/api/askGPT/GPTAsk'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'messages': message}),
-      );
-
-      print("jsonRequest: ${jsonEncode({'messages': message})}");
-
-      print("Response status code: ${response.body}");
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print("Response data: $data");
-      String gptResponse =
-          data['choices'][0]['message']['content'] ?? 'No response from GPT';
-      print("GPT Response: $gptResponse");
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false; // 1. 로딩 먼저 끄기
-          final lastIndex = _gptList.lastIndexWhere(
-            (msg) => msg.startsWith("GPT: loading"),
-          );
-          if (lastIndex != -1) {
-            _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
-          }
-          messages.add("GPT: $gptResponse");
-
-          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
-        });
-      } else {
-        setState(() {
-          _response = "오류 발생: ${response.statusCode}";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _response = "네트워크 오류: $e";
-        _gptTextController.clear(); // 입력창 비우기
-      });
-    }
-  }
-
-  Future<void> _sendGptRequest() async {
+  Future<void> _sendGptRequest({required bool isLimda}) async {
     final userInput = _gptTextController.text.trim();
     if (userInput.isEmpty) return;
-
     setState(() {
-      _gptList.add("나:  ${_gptTextController.text}");
-      _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
-
-      messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
-
-      _gptTextController.clear(); // 입력창 비우기
+      _gptList.add("나:  $userInput");
+      _gptList.add("GPT: loading...");
+      messages.add("나:  $userInput");
+      _gptTextController.clear();
     });
-    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
-    print("Search button pressed");
-    try {
-      final response = await http.post(
-        Uri.parse('https://jo-my-gpt.com/api/askGPT/groqAsk'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'messages': message}),
-      );
-      print("Response status code: ${response.body}");
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print("Response data: $data");
-      String gptResponse =
-          data['choices'][0]['message']['content'] ?? 'No response from GPT';
-      print("GPT Response: $gptResponse");
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false; // 1. 로딩 먼저 끄기
-
-          final lastIndex = _gptList.lastIndexWhere(
-            (msg) => msg.startsWith("GPT: loading"),
-          );
-          if (lastIndex != -1) {
-            _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
-          }
-          messages.add("GPT: $gptResponse");
-
-          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
-        });
-      } else {
-        setState(() {
-          _response = "오류 발생: ${response.statusCode}";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _response = "네트워크 오류: $e";
-        _gptTextController.clear(); // 입력창 비우기
-      });
+    final message =
+        messages.map((msg) => {'role': 'user', 'content': msg}).toList();
+    final urls =
+        isLimda
+            ? [
+              'http://172.30.1.59:8083/api/askGPT/GPTAsk',
+              'https://jo-my-gpt.com/api/askGPT/GPTAsk',
+            ]
+            : [
+              'https://jo-my-gpt.com/api/askGPT/groqAsk',
+              'http://172.30.1.59:8083/api/askGPT/groqAsk',
+            ];
+    for (var url in urls) {
+      try {
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'messages': message}),
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final gptResponse =
+              data['choices'][0]['message']['content'] ??
+              'No response from GPT';
+          setState(() {
+            final lastIndex = _gptList.lastIndexWhere(
+              (msg) => msg.startsWith("GPT: loading"),
+            );
+            if (lastIndex != -1) _gptList[lastIndex] = "GPT: $gptResponse";
+            messages.add("GPT: $gptResponse");
+          });
+          return;
+        }
+      } catch (_) {}
     }
-    // 여기에 GPT 요청을 보내는 로직을 추가합니다.
-    // 예시로, 2초 후에 "GPT Response"를 응답으로 설정합니다.
+    setState(() {
+      final lastIndex = _gptList.lastIndexWhere(
+        (msg) => msg.startsWith("GPT: loading"),
+      );
+      if (lastIndex != -1) _gptList[lastIndex] = "GPT: 네트워크 오류";
+    });
   }
+
+  // Future<void> _sendLimdaGptRequest() async {
+  //   final userInput = _gptTextController.text.trim();
+
+  //   if (userInput.isEmpty) return;
+
+  //   setState(() {
+  //     _gptList.add("나:  ${_gptTextController.text}");
+  //     _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
+
+  //     messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
+
+  //     _gptTextController.clear(); // 입력창 비우기
+  //   });
+  //   message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
+  //   print("Search button pressed");
+  //   try {
+  //     final response = await http.post(
+  //       Uri.parse('http://172.30.1.59:8083/api/askGPT/GPTAsk'),
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({'messages': message}),
+  //     );
+  //     print("responseAsk123" + response.body);
+  //     print("jsonRequests: ${jsonEncode({'messages': message})}");
+
+  //     print("Response status code: ${response.body}");
+  //     final Map<String, dynamic> data = jsonDecode(response.body);
+  //     print("Response data: $data");
+  //     String gptResponse =
+  //         data['choices'][0]['message']['content'] ?? 'No response from GPT';
+  //     print("GPT Response: $gptResponse");
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         _isLoading = false; // 1. 로딩 먼저 끄기
+  //         final lastIndex = _gptList.lastIndexWhere(
+  //           (msg) => msg.startsWith("GPT: loading"),
+  //         );
+  //         if (lastIndex != -1) {
+  //           _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
+  //         }
+  //         messages.add("GPT: $gptResponse");
+
+  //         _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _response = "오류 발생: ${response.statusCode}";
+  //       });
+  //     }
+  //   } catch (e) {
+  //     final response = await http.post(
+  //       Uri.parse('http://jo-my-gpt.com/api/askGPT/GPTAsk'),
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({'messages': message}),
+  //     );
+  //     print("responseAsk123" + response.body);
+  //     print("jsonRequests: ${jsonEncode({'messages': message})}");
+
+  //     print("Response status code: ${response.body}");
+  //     final Map<String, dynamic> data = jsonDecode(response.body);
+  //     print("Response data: $data");
+  //     String gptResponse =
+  //         data['choices'][0]['message']['content'] ?? 'No response from GPT';
+  //     print("GPT Response: $gptResponse");
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         _isLoading = false; // 1. 로딩 먼저 끄기
+  //         final lastIndex = _gptList.lastIndexWhere(
+  //           (msg) => msg.startsWith("GPT: loading"),
+  //         );
+  //         if (lastIndex != -1) {
+  //           _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
+  //         }
+  //         messages.add("GPT: $gptResponse");
+
+  //         _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _response = "오류 발생: ${response.statusCode}";
+  //       });
+  //     }
+  //     setState(() {
+  //       _response = "네트워크 오류: $e";
+  //       _gptTextController.clear(); // 입력창 비우기
+  //     });
+  //   }
+  // }
+
+  // Future<void> _sendGptRequest() async {
+  //   final userInput = _gptTextController.text.trim();
+  //   if (userInput.isEmpty) return;
+
+  //   setState(() {
+  //     _gptList.add("나:  ${_gptTextController.text}");
+  //     _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
+
+  //     messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
+
+  //     _gptTextController.clear(); // 입력창 비우기
+  //   });
+  //   message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
+  //   print("Search button pressed");
+  //   try {
+  //     final response = await http.post(
+  //       Uri.parse('https://jo-my-gpt.com/api/askGPT/groqAsk'),
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({'messages': message}),
+  //     );
+  //     print("responseAsk123" + response.body);
+  //     print("Response status code: ${response.body}");
+  //     final Map<String, dynamic> data = jsonDecode(response.body);
+  //     print("Response data: $data");
+  //     String gptResponse =
+  //         data['choices'][0]['message']['content'] ?? 'No response from GPT';
+  //     print("GPT Response: $gptResponse");
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         _isLoading = false; // 1. 로딩 먼저 끄기
+
+  //         final lastIndex = _gptList.lastIndexWhere(
+  //           (msg) => msg.startsWith("GPT: loading"),
+  //         );
+  //         if (lastIndex != -1) {
+  //           _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
+  //         }
+  //         messages.add("GPT: $gptResponse");
+
+  //         _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _response = "오류 발생: ${response.statusCode}";
+  //       });
+  //     }
+  //   } catch (e) {
+  //     final response = await http.post(
+  //       Uri.parse('http://localhost:8083/api/askGPT/groqAsk'),
+  //       headers: {'Content-Type': 'application/json'},
+  //       body: jsonEncode({'messages': message}),
+  //     );
+  //     print("responseAsk123" + response.body);
+  //     print("Response status code: ${response.body}");
+  //     final Map<String, dynamic> data = jsonDecode(response.body);
+  //     print("Response data: $data");
+  //     String gptResponse =
+  //         data['choices'][0]['message']['content'] ?? 'No response from GPT';
+  //     print("GPT Response: $gptResponse");
+  //     if (response.statusCode == 200) {
+  //       setState(() {
+  //         _isLoading = false; // 1. 로딩 먼저 끄기
+
+  //         final lastIndex = _gptList.lastIndexWhere(
+  //           (msg) => msg.startsWith("GPT: loading"),
+  //         );
+  //         if (lastIndex != -1) {
+  //           _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
+  //         }
+  //         messages.add("GPT: $gptResponse");
+
+  //         _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
+  //       });
+  //     } else {
+  //       setState(() {
+  //         _response = "오류 발생: ${response.statusCode}";
+  //       });
+  //     }
+  //     setState(() {
+  //       _response = "네트워크 오류: $e";
+  //       _gptTextController.clear(); // 입력창 비우기
+  //     });
+  //   }
+  //   // 여기에 GPT 요청을 보내는 로직을 추가합니다.
+  //   // 예시로, 2초 후에 "GPT Response"를 응답으로 설정합니다.
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -463,7 +580,9 @@ class _MyHomePageState extends State<MyHomePage>
                                 border: InputBorder.none,
                               ),
                               onSubmitted: (value) {
-                                _sendGptRequest();
+                                _sendGptRequest(
+                                  isLimda: _selectedOption == "MY LIMDA GPT",
+                                );
                               },
                             ),
                           );
@@ -482,9 +601,13 @@ class _MyHomePageState extends State<MyHomePage>
                       child: IconButton(
                         onPressed: () async {
                           if (_selectedOption == "MY GPT") {
-                            await _sendGptRequest();
-                          } else {
-                            await _sendLimdaGptRequest();
+                            _sendGptRequest(
+                              isLimda: _selectedOption == "MY LIMDA GPT",
+                            );
+                          } else if (_selectedOption == "MY LIMDA GPT") {
+                            _sendGptRequest(
+                              isLimda: _selectedOption == "MY LIMDA GPT",
+                            );
                           }
                         },
                         icon: Icon(
