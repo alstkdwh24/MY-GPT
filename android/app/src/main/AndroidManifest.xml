@@ -6,6 +6,8 @@
         android:label="flutter_gpt_project"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+            android:usesCleartextTraffic="true"
+
         android:enableOnBackInvokedCallback="true">
                  <meta-data
         android:name="com.naver.sdk.clientId"
