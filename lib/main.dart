@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_gpt_project/domain.dart';
 import 'package:flutter_gpt_project/draw_menu.dart';
 import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
@@ -91,12 +92,18 @@ class _MyHomePageState extends State<MyHomePage>
   final TextEditingController _gptTextController = TextEditingController();
   final TextEditingController _gptListTextController = TextEditingController();
   List<String> messages = [];
-  List<String> _gptList = [];
-  bool _isLoading = false;
+  final List<String> _gptList = [];
+  final bool _isLoading = false;
   StreamSubscription<Uri>? _subscription;
   late AnimationController _controller;
   late Animation<int> _dotCount;
   List<Map<String, String>> message = [];
+  late String nickName;
+
+  // ignore: prefer_typing_uninitialized_variables
+  late final gptContents;
+
+  @override
   void initState() {
     super.initState();
     _selectedOption = widget.selectedOption;
@@ -110,6 +117,8 @@ class _MyHomePageState extends State<MyHomePage>
     _gptTextController.clear();
     _gptList.clear();
     messages.clear();
+
+    _startGptRoom();
 
     _appLinks = AppLinks();
 
@@ -125,6 +134,7 @@ class _MyHomePageState extends State<MyHomePage>
     // 예를 들어, API 호출이나 데이터베이스 초기화 등을 수행할 수 있습니다.
   }
 
+  @override
   void dispose() {
     _subscription?.cancel();
     _controller.dispose(); // AnimationController 해제
@@ -167,121 +177,114 @@ class _MyHomePageState extends State<MyHomePage>
     }
   }
 
-  Future<void> _sendLimdaGptRequest() async {
-    final userInput = _gptTextController.text.trim();
-
-    if (userInput.isEmpty) return;
-
-    setState(() {
-      _gptList.add("나:  ${_gptTextController.text}");
-      _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
-
-      messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
-
-      _gptTextController.clear(); // 입력창 비우기
-    });
-    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
-    print("Search button pressed");
+  Future<void> _startGptRoom() async {
+    // 여기에 GPT 방을 시작하는 로직을 추가합니다.
+    // 예시로, 2초 후에 "GPT 방이 시작되었습니다."를 응답으로 설정합니다.
     try {
       final response = await http.post(
-        Uri.parse('https://jo-my-gpt.com/api/askGPT/GPTAsk'),
+        Uri.parse('$domain/api/gpt/rooms/createGptRoom'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'messages': message}),
+        body: jsonEncode({'roomName': 'My GPT Room'}),
       );
-
-      print("jsonRequest: ${jsonEncode({'messages': message})}");
-
-      print("Response status code: ${response.body}");
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print("Response data: $data");
-      String gptResponse =
-          data['choices'][0]['message']['content'] ?? 'No response from GPT';
-      print("GPT Response: $gptResponse");
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false; // 1. 로딩 먼저 끄기
-          final lastIndex = _gptList.lastIndexWhere(
-            (msg) => msg.startsWith("GPT: loading"),
-          );
-          if (lastIndex != -1) {
-            _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
-          }
-          messages.add("GPT: $gptResponse");
-
-          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
-        });
-      } else {
-        setState(() {
-          _response = "오류 발생: ${response.statusCode}";
-        });
-      }
+      print("채팅방이 생성되었습니다. ${response.body}");
+      final data = jsonDecode(response.body);
+      gptContents = data["room_id"];
+      print(gptContents + "채팅방의 정보가 나왔습니다.");
     } catch (e) {
+      logger.severe("Error starting GPT room: $e");
       setState(() {
-        _response = "네트워크 오류: $e";
-        _gptTextController.clear(); // 입력창 비우기
+        _response = "GPT 방 시작 오류: $e";
       });
     }
   }
 
-  Future<void> _sendGptRequest() async {
+  Future<void> _sendGptRequest({required bool isLimda}) async {
     final userInput = _gptTextController.text.trim();
     if (userInput.isEmpty) return;
-
     setState(() {
-      _gptList.add("나:  ${_gptTextController.text}");
-      _gptList.add("GPT: loading..."); // 1. GPT 로딩 말풍선 추가
-
-      messages.add("나:  ${_gptTextController.text}"); // 사용자의 질문도 누적
-
-      _gptTextController.clear(); // 입력창 비우기
+      _gptList.add("나:  $userInput");
+      _gptList.add("GPT: loading...");
+      messages.add("나:  $userInput");
+      _gptTextController.clear();
     });
-    message = messages.map((msg) => {'role': 'user', 'content': msg}).toList();
-    print("Search button pressed");
-    try {
-      final response = await http.post(
-        Uri.parse('https://jo-my-gpt.com/api/askGPT/groqAsk'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'messages': message}),
-      );
-      print("Response status code: ${response.body}");
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print("Response data: $data");
-      String gptResponse =
-          data['choices'][0]['message']['content'] ?? 'No response from GPT';
-      print("GPT Response: $gptResponse");
-      if (response.statusCode == 200) {
-        setState(() {
-          _isLoading = false; // 1. 로딩 먼저 끄기
+    final message =
+        messages.map((msg) => {'role': 'user', 'content': msg}).toList();
+    final urls =
+        isLimda
+            ? [
+              'https://jo-my-gpt.com/api/askGPT/GPTAsk',
+              'http://10.0.2.2:443/api/askGPT/GPTAsk',
+            ]
+            : [
+              'https://jo-my-gpt.com/api/askGPT/groqAsk',
+              'http://10.0.2.2:443/api/askGPT/groqAsk',
+            ];
+    final roomContent = "$domain/api/gpt/rooms/createGptContents";
+    for (var url in urls) {
+      try {
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'messages': message}),
+        );
 
-          final lastIndex = _gptList.lastIndexWhere(
-            (msg) => msg.startsWith("GPT: loading"),
-          );
-          if (lastIndex != -1) {
-            _gptList[lastIndex] = "GPT: $gptResponse"; // 2. 로딩 말풍선 업데이트
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final gptResponse =
+              data['choices'][0]['message']['content'] ??
+              'No response from GPT';
+
+          try {
+            final gptContentsResponse = await http
+                .post(
+                  Uri.parse(roomContent),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'room_id': gptContents,
+                    'content': userInput,
+                  }),
+                )
+                .timeout(Duration(seconds: 10));
+
+            print(
+              "채팅방에 메시지를 저장했습니다. Status: ${gptContentsResponse.statusCode}",
+            );
+          } catch (e) {
+            print("채팅방 저장 실패: $e");
+            // 저장 실패해도 UI는 업데이트
           }
-          messages.add("GPT: $gptResponse");
+          if (!mounted) return; // 추가
 
-          _response = utf8.decode(response.bodyBytes); // 한글 깨짐 방지
-        });
-      } else {
-        setState(() {
-          _response = "오류 발생: ${response.statusCode}";
-        });
-      }
-    } catch (e) {
+          setState(() {
+            final lastIndex = _gptList.lastIndexWhere(
+              (msg) => msg.startsWith("GPT: loading"),
+            );
+            if (lastIndex != -1) _gptList[lastIndex] = "GPT: $gptResponse";
+            messages.add("GPT: $gptResponse");
+          });
+
+          return;
+        }
+      } catch (_) {}
+    }
+    if (mounted) {
       setState(() {
-        _response = "네트워크 오류: $e";
-        _gptTextController.clear(); // 입력창 비우기
+        final lastIndex = _gptList.lastIndexWhere(
+          (msg) => msg.startsWith("GPT: loading"),
+        );
+        if (lastIndex != -1) _gptList[lastIndex] = "GPT: 네트워크 오류";
       });
     }
-    // 여기에 GPT 요청을 보내는 로직을 추가합니다.
-    // 예시로, 2초 후에 "GPT Response"를 응답으로 설정합니다.
   }
 
   @override
   Widget build(BuildContext context) {
     final inHeight = MediaQuery.of(context).size.height;
     final inWidth = MediaQuery.of(context).size.width;
+    late final gptContents;
     return Scaffold(
       resizeToAvoidBottomInset: true, // 기본값이지만 명시적으로 설정
       appBar: AppBar(
@@ -463,7 +466,9 @@ class _MyHomePageState extends State<MyHomePage>
                                 border: InputBorder.none,
                               ),
                               onSubmitted: (value) {
-                                _sendGptRequest();
+                                _sendGptRequest(
+                                  isLimda: _selectedOption == "MY LIMDA GPT",
+                                );
                               },
                             ),
                           );
@@ -482,9 +487,13 @@ class _MyHomePageState extends State<MyHomePage>
                       child: IconButton(
                         onPressed: () async {
                           if (_selectedOption == "MY GPT") {
-                            await _sendGptRequest();
-                          } else {
-                            await _sendLimdaGptRequest();
+                            _sendGptRequest(
+                              isLimda: _selectedOption == "MY LIMDA GPT",
+                            );
+                          } else if (_selectedOption == "MY LIMDA GPT") {
+                            _sendGptRequest(
+                              isLimda: _selectedOption == "MY LIMDA GPT",
+                            );
                           }
                         },
                         icon: Icon(

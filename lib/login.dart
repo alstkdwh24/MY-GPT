@@ -239,6 +239,7 @@ class _LoginPageState extends State<LoginPage> {
         final url = Uri.parse(
           'https://jo-my-gpt.com/oauth2/authorization/google',
         );
+
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
         } else {
