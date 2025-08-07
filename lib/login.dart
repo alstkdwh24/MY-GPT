@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_gpt_project/domain.dart';
 import 'package:flutter_gpt_project/joinPage.dart';
+import 'package:flutter_gpt_project/main.dart';
 import 'package:flutter_gpt_project/topPageHeader.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
@@ -24,8 +28,55 @@ class _LoginPageState extends State<LoginPage> {
       dotenv.env['nativeAppKey'] ?? 'YOUR_NATIVE_APP_KEY';
   final logger = Logger(); // 별도 인자 없이 생성
   final client_id = dotenv.env['client_id'];
-  final String redirectUri =
-      "https://jo-my-gpt.com/api/naver/naverLoginComplete";
+  final String redirectUri = "$domain/api/naver/naverLoginComplete";
+  // 누락된 변수들 추가
+  AppLinks? _appLinks;
+  StreamSubscription<Uri>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _appLinks = AppLinks();
+    _subscription = _appLinks!.uriLinkStream.listen((Uri? uri) {
+      if (uri != null) {
+        final link = uri.toString();
+        logger.i("딥링크 수신: $link");
+
+        if (link.startsWith("myapp://naverlogincomplete")) {
+          logger.i("네이버 로그인 완료! MyHomePage로 이동합니다.");
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder:
+                    (context, animation, secondaryAnimation) =>
+                        const MyHomePage(
+                          title: 'MY GPT',
+                          selectedOption: 'MY GPT',
+                        ),
+                transitionsBuilder: (
+                  context,
+                  animation,
+                  secondaryAnimation,
+                  child,
+                ) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                transitionDuration: Duration(milliseconds: 400),
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,33 +162,15 @@ class _LoginPageState extends State<LoginPage> {
           if (isInstalled) {
             // 카카오톡 앱 로그인
             token = await UserApi.instance.loginWithKakaoTalk();
-            print('카카오톡으로 로그인 성공');
+            print('카카오톡으로 로그인 성공 ${token.accessToken}');
+            kakaoUserInfo(token);
           } else {
             // 카카오계정(웹) 로그인
             token = await UserApi.instance.loginWithKakaoAccount();
-            print('카카오계정으로 로그인 성공');
+            print('카카오계정으로 로그인 성공 ${token.accessToken}');
+            kakaoUserInfo(token);
           }
           // 토큰을 Spring Boot 서버로 전송
-          try {
-            final response = await http.post(
-              Uri.parse('https://jo-my-gpt.com/api/kakao/kakaoToken'),
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({'kakaoToken': token.accessToken}),
-            );
-            logger.i('서버 응답: ${response.body}');
-
-            print('서버 응답: ${response.body}');
-          } catch (e) {
-            logger.log(Level.error, '서버 통신 실패: $e');
-          } finally {
-            // 토큰을 사용하여 사용자 정보 요청
-            final userInfo = await http.post(
-              Uri.parse("https://jo-my-gpt.com/api/kakao/userInfo"),
-              headers: {'Content-Type': "application/json"},
-              body: jsonEncode({'kakaoToken': token.accessToken}),
-            );
-            logger.i('사용자 정보: ${userInfo.body}');
-          }
         } catch (error) {
           logger.log(Level.error, '로그인 실패: $error');
           logger.i('nativeAppKey: $nativeAppKey'); // info 레벨로 출력
@@ -156,6 +189,18 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> kakaoUserInfo(OAuthToken token) async {
+    print('카카오 로그인 성공: ${token.accessToken}');
+    try {
+      final response = await http.post(
+        Uri.parse("$domain/api/kakao/userInfo"),
+        headers: {'Content-Type': "application/json"},
+        body: jsonEncode({'accessToken': token.accessToken}),
+      );
+      print(response);
+    } catch (error) {}
   }
 
   Widget naverLogin({required double fontSize}) {
@@ -225,8 +270,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget googleLogin({required double fontSize}) {
-    return // Google Login Button
-    ElevatedButton(
+    return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         minimumSize: Size(double.infinity, 48),
@@ -236,19 +280,37 @@ class _LoginPageState extends State<LoginPage> {
         padding: EdgeInsets.zero,
       ),
       onPressed: () async {
-        final url = Uri.parse(
-          'https://jo-my-gpt.com/oauth2/authorization/google',
-        );
+        try {
+          final url = Uri.parse('$domain/oauth2/authorization/google');
 
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          // 오류 처리
-          print('구글 로그인 페이지를 열 수 없습니다.');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+            logger.i('구글 로그인 페이지 열기 성공');
+          } else {
+            logger.log(Level.error, '구글 로그인 페이지를 열 수 없습니다.');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('구글 로그인을 실행할 수 없습니다. 다시 시도해주세요.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          logger.log(Level.error, '구글 로그인 오류: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('로그인 중 오류가 발생했습니다.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
       },
       child: SizedBox(
-        width: double.infinity, // 버튼 전체 너비
+        width: double.infinity,
         height: 48,
         child: Stack(
           alignment: Alignment.center,
@@ -264,7 +326,7 @@ class _LoginPageState extends State<LoginPage> {
   <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
   <path fill="none" d="M0 0h48v48H0z"/>
 </svg>
-                        ''',
+              ''',
                 width: 40,
                 height: 24,
               ),

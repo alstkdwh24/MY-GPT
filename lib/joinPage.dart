@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gpt_project/domain.dart';
 import 'package:flutter_gpt_project/main.dart';
 import 'package:http/http.dart' as http;
 
@@ -120,7 +121,7 @@ class _JoinpageState extends State<Joinpage> {
                       ),
                       onPressed: () async {
                         final response = await http.post(
-                          Uri.parse("http://3.38.89.59:8083/api/jwt/signUp"),
+                          Uri.parse("$domain/api/jwt/signUp"),
                           headers: {"Content-Type": "application/json"},
                           body: jsonEncode({
                             "userId": _idController.text,
