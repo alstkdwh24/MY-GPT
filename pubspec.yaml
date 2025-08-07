@@ -33,6 +33,7 @@ dependencies:
   url_launcher: ^6.1.14
   app_links: ^3.4.2
   google_sign_in: ^6.1.0
+  kakao_flutter_sdk_user: ^1.9.7+3
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gpt_project/domain.dart';
+import 'package:http/http.dart' as http;
 
 class Join extends StatefulWidget {
   const Join({super.key});
@@ -14,7 +16,15 @@ class _JoinPageState extends State<Join> {
       appBar: AppBar(title: const Text('Join Page')),
       body: Center(
         child: ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
+            final response = await http.post(
+              Uri.parse('$domain/api/jwt/signUp'),
+              headers: {'Content-Type': 'application/json'},
+              body: {
+                'email': 'user@example.com',
+                'password': 'password123',
+              },
+            );
             // Handle join logic here
           },
           child: const Text('Join'),

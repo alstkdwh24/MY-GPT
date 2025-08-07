@@ -20,35 +20,17 @@ Future<void> main() async {
     javaScriptAppKey: dotenv.env['javaScriptKey'],
   );
 
-  // FlutterNaverLogin.init is not defined; initialization is not required or handled differently in the latest package version.
-
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -65,17 +47,8 @@ class MyHomePage extends StatefulWidget {
     required this.selectedOption,
   });
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
-  final String selectedOption; // 추가
+  final String selectedOption;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -83,7 +56,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
-  //변수들
   late String _selectedOption;
   final orangeColor = Color.fromRGBO(255, 165, 0, 1.0);
 
@@ -117,7 +89,6 @@ class _MyHomePageState extends State<MyHomePage>
     )..repeat();
     _dotCount = StepTween(begin: 0, end: 4).animate(_controller);
 
-    // 입력창과 메시지 리스트도 초기화
     _gptTextController.clear();
     _gptList.clear();
     messages.clear();
@@ -133,15 +104,12 @@ class _MyHomePageState extends State<MyHomePage>
         logger.info("Naver login completed with URI: $uri");
       }
     });
-    // fetchData();
-    // 초기화 작업을 여기에 추가할 수 있습니다.
-    // 예를 들어, API 호출이나 데이터베이스 초기화 등을 수행할 수 있습니다.
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
-    _controller.dispose(); // AnimationController 해제
+    _controller.dispose();
     super.dispose();
   }
 
@@ -182,8 +150,6 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   Future<void> _startGptRoom() async {
-    // 여기에 GPT 방을 시작하는 로직을 추가합니다.
-    // 예시로, 2초 후에 "GPT 방이 시작되었습니다."를 응답으로 설정합니다.
     try {
       final response = await http.post(
         Uri.parse('$domain/api/gpt/rooms/createGptRoom'),
@@ -258,9 +224,8 @@ class _MyHomePageState extends State<MyHomePage>
             );
           } catch (e) {
             print("채팅방 저장 실패: $e");
-            // 저장 실패해도 UI는 업데이트
           }
-          if (!mounted) return; // 추가
+          if (!mounted) return;
 
           setState(() {
             final lastIndex = _gptList.lastIndexWhere(
@@ -290,7 +255,7 @@ class _MyHomePageState extends State<MyHomePage>
     final inWidth = MediaQuery.of(context).size.width;
     late final gptContents;
     return Scaffold(
-      resizeToAvoidBottomInset: true, // 기본값이지만 명시적으로 설정
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: orangeColor,
         title: Text(widget.title),
@@ -301,7 +266,6 @@ class _MyHomePageState extends State<MyHomePage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color.fromRGBO(246, 234, 216, 1),
                 foregroundColor: Colors.black,
-
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -310,7 +274,6 @@ class _MyHomePageState extends State<MyHomePage>
               onPressed: () {
                 pageChange();
               },
-
               child: Text(
                 (_selectedOption == "MY GPT") ? "MY LIMDA GPT" : "MY GPT",
                 style: TextStyle(color: Colors.black, fontSize: 16),
@@ -331,21 +294,18 @@ class _MyHomePageState extends State<MyHomePage>
                       color: Color.fromRGBO(246, 234, 216, 1),
                     ),
                     width: double.infinity,
-                    // 여기에 실제 대화 내용이나 리스트 등을 배치
-                    child: ListBuilder(), // 리스트 뷰 빌더 호출
+                    child: ListBuilder(),
                   ),
                 ],
               ),
             ),
-            bottom(), // 하단 입력창 및 버튼
+            bottom(),
           ],
         ),
       ),
     );
-    // ...existing code...
   }
 
-  //리스트 뷰 빌더 부분
   Widget ListBuilder() {
     return ListView.builder(
       padding: EdgeInsets.all(16),
@@ -355,7 +315,6 @@ class _MyHomePageState extends State<MyHomePage>
         final isUser = msg.startsWith("나: ");
         return Align(
           alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-
           child: Container(
             margin: EdgeInsets.symmetric(vertical: 4),
             padding: EdgeInsets.all(12),
@@ -364,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage>
               borderRadius: BorderRadius.circular(12),
             ),
             child:
-                (isUser || msg != "GPT: loading...") // 로딩 말풍선 제외
+                (isUser || msg != "GPT: loading...")
                     ? Column(
                       crossAxisAlignment:
                           isUser
@@ -424,9 +383,7 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-  // 하단 입력창 및 버튼
   Widget bottom() {
-    // TODO: Implement your widget here
     return SafeArea(
       top: false,
       left: false,
@@ -435,7 +392,7 @@ class _MyHomePageState extends State<MyHomePage>
       child: Container(
         decoration: BoxDecoration(color: orangeColor),
         width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 8), // 하단 여백 추가
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

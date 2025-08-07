@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gpt_project/domain.dart';
 import 'package:flutter_gpt_project/main.dart';
 import 'package:http/http.dart' as http;
 
@@ -86,7 +87,7 @@ class _TopPageHeader extends State<TopPageHeader> {
                       ),
                       onPressed: () async {
                         final response = await http.post(
-                          Uri.parse("http://3.38.89.59:8083/api/jwt/login"),
+                          Uri.parse("$domain/api/jwt/login"),
                           headers: {"Content-Type": "application/json"},
 
                           body: jsonEncode({
